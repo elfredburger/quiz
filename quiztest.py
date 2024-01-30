@@ -1,28 +1,35 @@
 import requests
 import json
 import timeit
+import sys
+
+session = requests.Session()
+pull=session.get('') #enter questions link
+if pull.status_code!=200:
+    print('Network error status code: '+ str(pull.status_code))
+    sys.exit()
+listOfQuestions=pull.json() 
 
 
-listOfQuestions=requests.get('https://7xzprnkulf.execute-api.eu-west-1.amazonaws.com/Prod/questions/all').json()
 numberOfQuestions=(len(listOfQuestions))
 listOfMarkedQuestions=[]
 
 
 class Quiz:
-    def __init__(self,user,lang):
+    def __init__(self,user):
         self.user=user
-        self.lang=lang
         self.correctAnswers=0
         self.report=[]
-    def reportAdd(self,question,answer,correctAnswer,timeSpent):
+    def report_add(self,question,answer,correctAnswer,timeSpent):
         
         self.report.append({'question':question,'userAnswer':answer,'correctAnswer':correctAnswer,'timeSpent':timeSpent})
-    def endQuiz(self):
-        
-        for i in self.report:
-            print("question: "+i.get("question")+"\n"+"you answered: "+ i.get("userAnswer")+"\n"+"correct answer: "+i.get('correctAnswer')+"\ntime spent on this question "+str(round(i.get('timeSpent')))+' seconds\n')
-        print('\ncorrect answers: '+ str(self.correctAnswers)+'\n')
-        print('your score is: '+ str((self.correctAnswers/numberOfQuestions)*100)+' % !')
+    def end_quiz(self):
+        print(self.user+', your results are: \n')
+        for questionResult in self.report:
+            print('Question: '+questionResult.get('question')+'\n'+'You answered: '+ questionResult.get('userAnswer')+'\n'
+                +'Correct answer: '+questionResult.get('correctAnswer')+'\nTime spent on this question '+str(round(questionResult.get('timeSpent')))+' seconds\n')
+        print('\nCorrect answers: '+ str(self.correctAnswers)+'\n')
+        print('Your score is: '+ str((self.correctAnswers/numberOfQuestions)*100)+' % !')
     
         
 
@@ -30,74 +37,79 @@ class Quiz:
         
 
 
-def checkAnswer(answer,question,quiz,timeSpent):
+def check_answer(answer,question,quiz,timeSpent):
     
-    answers= ['A','B','C','D','E','A,B','A,C','A,D','A,E', 'B,A','B,C','B,D','B,E','C,A','C,B','C,D','C,E','D,A','D,B','D,C','D,E','E,A','E,B','E,C','E,D']
+    answers= ['A','B','C','D','E','A,B','A,C','A,D','A,E',
+              'B,A','B,C','B,D','B,E','C,A','C,B','C,D',
+              'C,E','D,A','D,B','D,C','D,E','E,A','E,B',
+              'E,C','E,D']
     if answer in answers:                                  
         if answer == question.get('CorrectAnswers'):
             quiz.correctAnswers+=1
-        quiz.reportAdd(question.get('Question'),answer,question.get('CorrectAnswers'),timeSpent)
+        quiz.report_add(question.get('Question'),answer,question.get('CorrectAnswers'),timeSpent)
 
     if answer=='M' and question in listOfMarkedQuestions:
-        answer=input('incorrect answer, try again').upper()
-        checkAnswer(answer,question,quiz,timeSpent)
+        answer=input('Incorrect answer, try again ').upper()
+        check_answer(answer,question,quiz,timeSpent)
 
     if answer=='M' and question not in listOfMarkedQuestions:
         listOfMarkedQuestions.append(question)
-        print('question added for review')
+        print('Question added for review')
                     
     
     if answer not in answers and answer!='M' :
         
-        answer=input('incorrect answer, try again').upper()
-        checkAnswer(answer,question,quiz,timeSpent)
+        answer=input('Incorrect answer, try again').upper()
+        check_answer(answer,question,quiz,timeSpent)
     
 
  
 
-def askQuestion(listOfQuestions,a):
-        for i in listOfQuestions:
-            print("\nquestion : "+ i.get("Question")+'\n')
+def ask_question(listOfQuestions,quiz):
+        for question in listOfQuestions:
+            print('\nQuestion : '+ question.get('Question')+'\n')
 
-            print ('to mark question type "M"')
-            if i.get("RequiredAnswers")==1:
-                print('choose one answer a,b,c,d'+'\n')
-                print("A) "+i.get('AnswerA'))
-                print("B) "+i.get('AnswerB'))
-                print("C) "+i.get('AnswerC'))
-                print("D) "+i.get('AnswerD'))
+            print ('To mark question type "M"')
+            if question.get('RequiredAnswers')==1:
+                print('Choose one answer a,b,c,d'+'\n')
+                print('A) '+question.get('AnswerA'))
+                print('B) '+question.get('AnswerB'))
+                print('C) '+question.get('AnswerC'))
+                print('D) '+question.get('AnswerD'))
 
             else:
                 print('choose two answers separated by coma')
-                print("A) "+i.get('AnswerA'))
-                print("B) "+i.get('AnswerB'))
-                print("C) "+i.get('AnswerC'))
-                print("D) "+i.get('AnswerD'))
-                if i.get('AnswerE')!='':
-                    print("E) "+i.get('AnswerE'))
+                print('A) '+question.get('AnswerA'))
+                print('B) '+question.get('AnswerB'))
+                print('C) '+question.get('AnswerC'))
+                print('D) '+question.get('AnswerD'))
+                if question.get('AnswerE')!='':
+                    print('E) '+question.get('AnswerE'))
             
             
             question_timer_start=timeit.default_timer()
             answer = input('your answer is: ').upper()
             question_timer_end=timeit.default_timer()
-            checkAnswer(answer,i,a,question_timer_end-question_timer_start)
+            check_answer(answer,question,quiz,question_timer_end-question_timer_start)
                 
-        a.endQuiz()   
+          
        
 
 
 def run():
     
-    name = input('enter your name')
-    #lang=input('enter "eng" for english version or "de" for german version')
+    name = input('Enter your name ')
+    #lang=input('enter 'eng' for english version or 'de' for german version')
     start = timeit.default_timer()
-    a=Quiz(name,'eng')
+    quiz=Quiz(name)
     
 
-    askQuestion(listOfQuestions,a)
-    print('-------------------------You are now answering questions you marked for review-------------------------')
-    askQuestion(listOfMarkedQuestions,a)
-
+    ask_question(listOfQuestions,quiz)
+    
+    if len(listOfMarkedQuestions)>0:
+        print('-------------------------You are now answering questions you marked for review-------------------------')
+        ask_question(listOfMarkedQuestions,quiz)
+    quiz.end_quiz()
     end=timeit.default_timer()
-    print ('time spent on the quiz is '+ str(round(end-start))+' seconds. Average time per question is '+str(round((end-start)/len(listOfQuestions))))
+    print ('Time spent on the quiz is '+ str(round(end-start))+' seconds. Average time per question is '+str(round((end-start)/len(listOfQuestions))))
 run()
